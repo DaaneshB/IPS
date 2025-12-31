@@ -9,7 +9,7 @@ RULES = [
     # --- HIGH FIDELITY ATTACKS ---
     {
         "name": "SQL Injection (Union Based)", 
-        "pattern": "UNION SELECT", 
+        "pattern": "UNION", 
         "ports": [80, 8080, 443]
     },
     {
