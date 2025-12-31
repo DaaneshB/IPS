@@ -1,5 +1,5 @@
 
-INTERFACE = "enp0s3"
+INTERFACE = "lo"
 LOG_FILE = "ips_events.log"
 BLOCKED_IPS = set()
 
