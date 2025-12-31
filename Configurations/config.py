@@ -1,8 +1,9 @@
 
-INTERFACE = #
-L0G_FILE = #
+INTERFACE = "enp0s3"
+LOG_FILE = "ips_events.log"
 BLOCKED_IPS = set()
 
+# target ip: 192.168.4.67/22
 # format of rules for signature based detection: {"name": "Type of Attack", "pattern": "text", "ports": "[X, Y]"}
 RULES = [
     # --- HIGH FIDELITY ATTACKS ---
