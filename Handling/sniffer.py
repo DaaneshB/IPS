@@ -33,6 +33,7 @@ def sniffer(packet):
 
 
 def start_sniffing():
+    print("Starting IPS...")
     log_event(f"IPS started on interface {INTERFACE}")
     log_event(f"Loaded {len(RULES)} rules.")
 
