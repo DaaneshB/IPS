@@ -24,6 +24,9 @@ def sniffer(packet):
             try:
                 #decode payload
                 payload = (packet[Raw].load.decode('utf-8', errors='ignore'))
+
+                print(f"[Debug] Inspecting: {payload[:50]}")
+
                 check_packet(payload, src_ip, dst_port)
             except Exception as e:
                 pass
