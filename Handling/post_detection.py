@@ -6,7 +6,7 @@ def log_event(message):
     """Logs alert to file."""
     timestamp = timre.strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] {message}\n"
-    #print(log_entry)  # For real-time monitoring
+    print(log_entry)  # For real-time monitoring
     with open(LOG_FILE, "a") as log_file:
         log_file.write(log_entry + "\n")
 
