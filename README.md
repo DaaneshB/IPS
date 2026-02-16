@@ -153,7 +153,7 @@ Press Ctrl+C to stop...
 ```
 
 ### Secure Shutdown
-Press `Ctrl+C` to gracefully stop the IPS. Statistics will be displayed:
+Press `Ctrl+C` to stop the IPS. Statistics will be displayed:
 ```
 ============================================================
 IPS SHUTDOWN - PERFORMANCE SUMMARY
@@ -186,39 +186,4 @@ Logs are stored in `ips_events.log` with comprehensive forensic data:
 - `BLOCK`: IP blocking action
 - `ERROR`: System/processing errors
 
-## Resume Highlight Points
-
-This IPS implementation demonstrates:
-
-✓ **Developed a signature-based IPS using Python and Scapy** to monitor network traffic in real-time, detecting and blocking attack patterns including SQL injection, XSS, and RCE exploits
-
-✓ **Engineered automated IP blocking system with iptables**, achieving sub-second response time from threat detection to firewall rule deployment
-
-✓ **Implemented packet inspection pipeline** processing TCP payloads across 7+ critical ports (FTP, SSH, SMTP, HTTP, HTTPS, MySQL, PostgreSQL), with pattern matching algorithms handling 1000+ packets per second
-
-✓ **Established comprehensive event logging system** to track attack type, source IP, and timestamps with millisecond precision, enabling forensic analysis and threat intelligence gathering
-
-## Future Enhancements
-
-- Machine learning-based anomaly detection
-- Distributed detection across multiple network segments
-- Integration with SIEM platforms
-- Protocol-aware deep packet inspection (DPI)
-- Bidirectional traffic monitoring (outbound threat prevention)
-- Load balancing for multi-interface monitoring
-- IP reputation database integration
-- Custom rule management API
-
-## Security Considerations
-
-- Always run on a secure, isolated network during development
-- Test thoroughly before deploying to production
-- Regularly review and update detection signatures
-- Monitor false positive rates and tune rules accordingly
-- Implement rate limiting for noisy signatures
-- Consider running in alert-only mode initially
-
-## License
-
-This project is provided as-is for educational and defensive security purposes.
 
