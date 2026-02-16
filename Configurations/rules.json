@@ -1,0 +1,102 @@
+[
+    {
+        "name": "SQL Injection (Union Based)",
+        "pattern": "UNION",
+        "ports": [80, 8080, 443, 3306, 5432]
+    },
+    {
+        "name": "SQL Injection (Boolean Blind)",
+        "pattern": "' OR '1'='1",
+        "ports": [80, 8080, 443, 3306, 5432]
+    },
+    {
+        "name": "SQL Injection (Time-Based)",
+        "pattern": "WAITFOR DELAY",
+        "ports": [80, 8080, 443, 3306, 5432]
+    },
+    {
+        "name": "Cross-Site Scripting (XSS)",
+        "pattern": "<script>",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "JavaScript Event Handler Injection",
+        "pattern": "javascript:",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Directory Traversal (Linux)",
+        "pattern": "/etc/shadow",
+        "ports": [80, 8080, 443, 21]
+    },
+    {
+        "name": "Directory Traversal (Windows)",
+        "pattern": "\\windows\\system32",
+        "ports": [80, 8080, 443, 21]
+    },
+    {
+        "name": "Path Traversal Dot-Dot",
+        "pattern": "../",
+        "ports": [80, 8080, 443, 21]
+    },
+    {
+        "name": "Automated SQL Scanner (sqlmap)",
+        "pattern": "sqlmap",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Nikto Web Scanner",
+        "pattern": "Nikto",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Nmap Service Scan",
+        "pattern": "NSE",
+        "ports": [80, 8080, 443, 22]
+    },
+    {
+        "name": "PHP Reverse Shell",
+        "pattern": "c99.php",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Remote Code Execution (Log4j)",
+        "pattern": "${jndi:",
+        "ports": [80, 8080, 8443]
+    },
+    {
+        "name": "Command Injection (Linux)",
+        "pattern": "; rm -rf /",
+        "ports": [80, 8080, 443, 22]
+    },
+    {
+        "name": "Command Injection (Windows)",
+        "pattern": "cmd.exe /c",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Private Key Theft (RSA)",
+        "pattern": "-----BEGIN RSA PRIVATE KEY-----",
+        "ports": [80, 8080, 21, 22, 25]
+    },
+    {
+        "name": "Private Key Theft (OpenSSH)",
+        "pattern": "-----BEGIN OPENSSH PRIVATE KEY-----",
+        "ports": [22, 21]
+    },
+    {
+        "name": "AWS Credentials Exposure",
+        "pattern": "AKIA",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "FTP Bounce Attack",
+        "pattern": "PORT 127,0,0,1",
+        "ports": [21]
+    },
+    {
+        "name": "SSH Brute Force Indicator",
+        "pattern": "SSH-2.0-libssh",
+        "ports": [22]
+    }
+]

@@ -1,62 +1,34 @@
 
+import json
+import os
+
 INTERFACE = "lo"
 LOG_FILE = "ips_events.log"
 BLOCKED_IPS = set()
 
-# target ip: 192.168.4.67/22
-# format of rules for signature based detection: {"name": "Type of Attack", "pattern": "text", "ports": "[X, Y]"}
-RULES = [
-    # --- HIGH FIDELITY ATTACKS ---
-    {
-        "name": "SQL Injection (Union Based)", 
-        "pattern": "UNION", 
-        "ports": [80, 8080, 443]
-    },
-    {
-        "name": "SQL Injection (Boolean Blind)", 
-        "pattern": "' OR '1'='1", 
-        "ports": [80, 8080, 443]
-    },
-    {
-        "name": "Cross-Site Scripting (XSS)", 
-        "pattern": "<script>", 
-        "ports": [80, 8080, 443]
-    },
-    {
-        "name": "Directory Traversal (Linux)", 
-        "pattern": "/etc/shadow", 
-        "ports": [80, 8080, 443]
-    },
-    {
-        "name": "Directory Traversal (Windows)", 
-        "pattern": "\\windows\\system32", 
-        "ports": [80, 8080, 443]
-    },
+# Performance configuration for packet inspection pipeline
+PACKET_PROCESSING_CONFIG = {
+    "store_packets": False,  # Optimize memory by not storing packets
+    "timeout": 0,            # Continuous monitoring
+}
 
-    {
-        "name": "Automated SQL Scanner (sqlmap)", 
-        "pattern": "sqlmap", 
-        "ports": [80, 8080]
-    },
-    {
-        "name": "Nikto Web Scanner", 
-        "pattern": "Nikto", 
-        "ports": [80, 8080]
-    },
+# Load signature-based detection rules from JSON file
+# Rules cover 7+ critical ports: HTTP (80), HTTPS (443), FTP (21), SSH (22), SMTP (25), MySQL (3306), PostgreSQL (5432)
+def load_rules():
+    """Load detection rules from rules.json file.
+    
+    Returns:
+        list: List of rule dictionaries with 'name', 'pattern', and 'ports' keys
+    """
+    rules_file = os.path.join(os.path.dirname(__file__), "rules.json")
+    try:
+        with open(rules_file, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Error: Rules file not found at {rules_file}")
+        return []
+    except json.JSONDecodeError:
+        print(f"Error: Invalid JSON in {rules_file}")
+        return []
 
-    {
-        "name": "PHP Reverse Shell", 
-        "pattern": "c99.php", 
-        "ports": [80, 8080]
-    },
-    {
-        "name": "Remote Code Execution (Log4j)", 
-        "pattern": "${jndi:", 
-        "ports": [80, 8080, 8443]
-    },
-    {
-        "name": "Private Key Theft", 
-        "pattern": "-----BEGIN RSA PRIVATE KEY-----", 
-        "ports": [80, 8080, 21, 22]
-    }
-]
+RULES = load_rules()
