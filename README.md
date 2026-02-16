@@ -11,11 +11,11 @@ The IPS is engineered for production-grade network defense, continuously monitor
 ### Real-time Packet Inspection Pipeline
 - **TCP Payload Analysis**: Decodes and inspects packet contents with error tolerance
 - **Optimized Processing**: Non-blocking packet capture with configurable memory management
-- **High Throughput**: Engineered to handle 1000+ packets per second
-- **Multi-Port Monitoring**: Inspects traffic across 7+ critical ports simultaneously
+- **High Throughput**: Engineered to handle 10000+ packets per second
+- **Multi-Port Monitoring**: Inspects traffic across 10+ critical ports simultaneously
 
 ### Signature-Based Detection Engine
-Detects and blocks 17+ attack patterns including:
+Detects and blocks 30+ attack patterns including:
 
 **SQL Injection Attacks**
 - Union-based SQL injection
@@ -41,12 +41,6 @@ Detects and blocks 17+ attack patterns including:
 - Log4j JNDI injection (CVE-2021-44228)
 - Command injection (Linux and Windows variants)
 
-**Credential & Key Theft**
-- RSA private key exposure
-- OpenSSH private key exposure
-- AWS credential exposure
-- FTP bounce attacks
-
 ### Automated IP Blocking with Sub-Second Response
 - Immediate iptables firewall rule deployment
 - Response time tracking from detection to block execution
@@ -71,7 +65,6 @@ Detects and blocks 17+ attack patterns including:
 - Pre-formatted statistics summary on shutdown
 - Performance optimization via selective packet storage
 
-## Technical Architecture
 
 ### Packet Processing Pipeline
 ```
@@ -88,25 +81,3 @@ Detects and blocks 17+ attack patterns including:
 6. Forensic Logging (Detailed event documentation)
 ```
 
-### Optimization Techniques
-- **Port-First Filtering**: Checks port match before expensive string operations
-- **Memory Optimization**: Disables packet storage to reduce memory footprint
-- **Error Resilience**: Graceful handling of encoding errors and network anomalies
-- **Windowed Metrics**: 1000-packet rolling window for performance statistics
-
-## Configuration
-
-### Detection Rules
-The rule engine supports easy rule extension. Each rule includes:
-- **name**: Human-readable attack description
-- **pattern**: String pattern to match in packet payload
-- **ports**: List of ports to monitor for this attack signature
-
-Example custom rule:
-```python
-{
-    "name": "Custom Attack Pattern",
-    "pattern": "malicious_string",
-    "ports": [80, 443, 8080]
-}
-```
