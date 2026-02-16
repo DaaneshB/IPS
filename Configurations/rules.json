@@ -15,6 +15,16 @@
         "ports": [80, 8080, 443, 3306, 5432]
     },
     {
+        "name": "SQL Injection (Stacked Queries)",
+        "pattern": "; DROP TABLE",
+        "ports": [80, 8080, 443, 3306, 5432]
+    },
+    {
+        "name": "SQL Injection (Comment-Based)",
+        "pattern": "' OR 1=1--",
+        "ports": [80, 8080, 443, 3306, 5432]
+    },
+    {
         "name": "Cross-Site Scripting (XSS)",
         "pattern": "<script>",
         "ports": [80, 8080, 443]
@@ -22,6 +32,16 @@
     {
         "name": "JavaScript Event Handler Injection",
         "pattern": "javascript:",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "SVG/XML Injection (XSS)",
+        "pattern": "<svg onload=",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "HTML5 Event Handler Injection",
+        "pattern": "onerror=alert",
         "ports": [80, 8080, 443]
     },
     {
@@ -40,6 +60,11 @@
         "ports": [80, 8080, 443, 21]
     },
     {
+        "name": "Password File Access (Linux)",
+        "pattern": "/etc/passwd",
+        "ports": [80, 8080, 443, 21, 22]
+    },
+    {
         "name": "Automated SQL Scanner (sqlmap)",
         "pattern": "sqlmap",
         "ports": [80, 8080, 443]
@@ -55,14 +80,29 @@
         "ports": [80, 8080, 443, 22]
     },
     {
+        "name": "Burp Suite Scanner",
+        "pattern": "burp",
+        "ports": [80, 8080, 443]
+    },
+    {
         "name": "PHP Reverse Shell",
         "pattern": "c99.php",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "PHP Web Shell Upload",
+        "pattern": "<?php system",
         "ports": [80, 8080, 443]
     },
     {
         "name": "Remote Code Execution (Log4j)",
         "pattern": "${jndi:",
         "ports": [80, 8080, 8443]
+    },
+    {
+        "name": "RCE (Bash Injection)",
+        "pattern": "$(whoami)",
+        "ports": [80, 8080, 443, 22]
     },
     {
         "name": "Command Injection (Linux)",
@@ -72,6 +112,16 @@
     {
         "name": "Command Injection (Windows)",
         "pattern": "cmd.exe /c",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Command Injection (Backtick)",
+        "pattern": "`id`",
+        "ports": [80, 8080, 443, 22]
+    },
+    {
+        "name": "Perl Command Injection",
+        "pattern": "system(",
         "ports": [80, 8080, 443]
     },
     {
@@ -90,6 +140,11 @@
         "ports": [80, 8080, 443]
     },
     {
+        "name": "Database Connection String Leak",
+        "pattern": "password=",
+        "ports": [80, 8080, 443]
+    },
+    {
         "name": "FTP Bounce Attack",
         "pattern": "PORT 127,0,0,1",
         "ports": [21]
@@ -98,5 +153,20 @@
         "name": "SSH Brute Force Indicator",
         "pattern": "SSH-2.0-libssh",
         "ports": [22]
+    },
+    {
+        "name": "XML External Entity (XXE)",
+        "pattern": "<!ENTITY",
+        "ports": [80, 8080, 443]
+    },
+    {
+        "name": "Path Traversal (Absolute Path)",
+        "pattern": "/dev/",
+        "ports": [80, 8080, 443, 21]
+    },
+    {
+        "name": "LDAP Injection",
+        "pattern": "*)(uid=*",
+        "ports": [389, 636, 80, 8080]
     }
 ]
