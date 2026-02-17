@@ -94,19 +94,29 @@ class ThresholdTracker:
     """Sliding-window counter per IP to reduce false-positive blocking."""
 
     def __init__(self, count: Optional[int] = None, window: Optional[int] = None) -> None:
-        self.count = count if count is not None else config.THRESHOLD_COUNT
-        self.window = window if window is not None else config.THRESHOLD_WINDOW_SECONDS
+        self._count_override = count
+        self._window_override = window
         self.hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
 
+    @property
+    def count(self) -> int:
+        return self._count_override if self._count_override is not None else config.THRESHOLD_COUNT
+
+    @property
+    def window(self) -> int:
+        return self._window_override if self._window_override is not None else config.THRESHOLD_WINDOW_SECONDS
+
     def should_block(self, ip: str) -> bool:
         now = time.time()
+        window = self.window
+        count = self.count
         with self._lock:
             q = self.hits[ip]
-            while q and now - q[0] > self.window:
+            while q and now - q[0] > window:
                 q.popleft()
             q.append(now)
-            return len(q) >= self.count
+            return len(q) >= count
 
 
 metrics = PerformanceMetrics()
