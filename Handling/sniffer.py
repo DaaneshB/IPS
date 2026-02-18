@@ -93,11 +93,14 @@ class PatternMatcher:
 class ThresholdTracker:
     """Sliding-window counter per IP to reduce false-positive blocking."""
 
+    _SWEEP_INTERVAL: float = 30.0
+
     def __init__(self, count: Optional[int] = None, window: Optional[int] = None) -> None:
         self._count_override = count
         self._window_override = window
         self.hits: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
+        self._last_sweep: float = time.time()
 
     @property
     def count(self) -> int:
@@ -116,7 +119,26 @@ class ThresholdTracker:
             while q and now - q[0] > window:
                 q.popleft()
             q.append(now)
-            return len(q) >= count
+            hit_count = len(q)
+            if hit_count >= count:
+                # Reset so a blocked IP doesn't retain state; also frees the deque.
+                del self.hits[ip]
+                return True
+            self._sweep_locked(now, window)
+            return False
+
+    def _sweep_locked(self, now: float, window: float) -> None:
+        """Drop per-IP entries whose windows have fully expired.
+
+        Called under self._lock. Cheap amortized cost: only runs a full sweep
+        every _SWEEP_INTERVAL seconds so the hot path stays O(1).
+        """
+        if now - self._last_sweep < self._SWEEP_INTERVAL:
+            return
+        self._last_sweep = now
+        expired = [ip for ip, q in self.hits.items() if not q or now - q[-1] > window]
+        for ip in expired:
+            del self.hits[ip]
 
 
 metrics = PerformanceMetrics()
