@@ -280,7 +280,18 @@ def start_sniffing() -> None:
         print("=" * 60 + "\n")
 
 
+def _is_privileged() -> bool:
+    """Return True if the current process can capture raw packets."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception:
+            return False
+    return hasattr(os, "geteuid") and os.geteuid() == 0
+
+
 if __name__ == "__main__":
-    if os.getuid() != 0:
-        sys.exit("Error: Run as root user.")
+    if not _is_privileged():
+        sys.exit("Error: Run as root (Linux/macOS) or Administrator (Windows).")
     start_sniffing()
