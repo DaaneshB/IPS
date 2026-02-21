@@ -10,6 +10,7 @@ from Configurations.config import LOG_FILE, BLOCKED_IPS
 _block_queue: "queue.Queue[tuple[str, str | None, int | None, float | None]]" = queue.Queue()
 _blocker_thread: threading.Thread | None = None
 _blocker_lock = threading.Lock()
+_log_lock = threading.Lock()
 
 
 def log_event(message, event_type="INFO", src_ip=None, attack_type=None, port=None, response_time=None):
@@ -35,9 +36,10 @@ def log_event(message, event_type="INFO", src_ip=None, attack_type=None, port=No
     if response_time is not None:
         log_entry += f" | RESPONSE_TIME: {response_time*1000:.2f}ms"
 
-    print(log_entry)
-    with open(LOG_FILE, "a") as log_file:
-        log_file.write(log_entry + "\n")
+    with _log_lock:
+        print(log_entry)
+        with open(LOG_FILE, "a", encoding="utf-8") as log_file:
+            log_file.write(log_entry + "\n")
 
 
 def _blocker_worker():
