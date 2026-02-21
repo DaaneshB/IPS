@@ -79,7 +79,9 @@ def _execute_block(ip_address, attack_type, port, response_time):
         block_duration = time.time() - block_start
 
         if result.returncode == 0:
-            total_response = response_time + block_duration if response_time else block_duration
+            total_response = (
+                response_time + block_duration if response_time is not None else block_duration
+            )
             log_event(
                 f"Blocked IP: {ip_address}",
                 event_type="BLOCK",
