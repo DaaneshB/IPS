@@ -143,18 +143,11 @@ class ThresholdTracker:
 
 metrics = PerformanceMetrics()
 threshold_tracker = ThresholdTracker()
-pattern_matcher: Optional[PatternMatcher] = None
+pattern_matcher = PatternMatcher(config.RULES)
 
 # Worker queue for multi-threaded packet inspection
 _packet_queue: queue.Queue[Optional[tuple[str, str, int]]] = queue.Queue(maxsize=10_000)
 _NUM_WORKERS = 2
-
-
-def initialize_matcher() -> None:
-    global pattern_matcher
-    pattern_matcher = PatternMatcher(config.RULES)
-    algo_type = "Aho-Corasick" if pattern_matcher.use_ahocorasick else "Naive String Matching"
-    log_event(f"Pattern matcher initialized using {algo_type} algorithm", event_type="INFO")
 
 
 def check_packet(payload: str, src_ip: str, dst_port: int) -> tuple[Optional[dict], float]:
@@ -229,8 +222,8 @@ def start_sniffing() -> None:
     print("SIGNATURE-BASED INTRUSION PREVENTION SYSTEM (IPS)")
     print("=" * 60)
 
-    initialize_matcher()
-
+    algo_type = "Aho-Corasick" if pattern_matcher.use_ahocorasick else "Naive String Matching"
+    log_event(f"Pattern matcher initialized using {algo_type} algorithm", event_type="INFO")
     log_event(f"IPS started on interface {config.INTERFACE}", event_type="INFO")
     log_event(f"Loaded {len(config.RULES)} attack signatures", event_type="INFO")
     log_event(
