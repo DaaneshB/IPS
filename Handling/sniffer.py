@@ -150,13 +150,13 @@ _packet_queue: queue.Queue[Optional[tuple[str, str, int]]] = queue.Queue(maxsize
 _NUM_WORKERS = 2
 
 
-def check_packet(payload: str, src_ip: str, dst_port: int) -> tuple[Optional[dict], float]:
+def check_packet(payload: str, dst_port: int) -> tuple[Optional[dict], float]:
     return pattern_matcher.find_matches(payload, dst_port)
 
 
 def _process_packet(payload: str, src_ip: str, dst_port: int) -> None:
     """Inspect a single decoded packet and trigger response if matched."""
-    matched_rule, detection_time = check_packet(payload, src_ip, dst_port)
+    matched_rule, detection_time = check_packet(payload, dst_port)
     metrics.record_packet(detection_time)
 
     if matched_rule:
