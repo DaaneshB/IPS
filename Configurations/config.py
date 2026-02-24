@@ -23,12 +23,20 @@ def load_rules():
     rules_file = os.path.join(os.path.dirname(__file__), "rules.json")
     try:
         with open(rules_file, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Error: Rules file not found at {rules_file}")
-        return []
-    except json.JSONDecodeError:
-        print(f"Error: Invalid JSON in {rules_file}")
-        return []
+            rules = json.load(f)
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            f"IPS refusing to start: rules file not found at {rules_file}"
+        ) from e
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"IPS refusing to start: invalid JSON in {rules_file}: {e}"
+        ) from e
+
+    if not rules:
+        raise RuntimeError(
+            f"IPS refusing to start: {rules_file} contains no signatures"
+        )
+    return rules
 
 RULES = load_rules()
