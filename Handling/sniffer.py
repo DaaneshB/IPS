@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import Configurations.config as config
 from Handling.post_detection import log_event, block_ip
-from scapy.all import sniff, IP, TCP, Raw
+from scapy.all import sniff, IP, TCP, UDP, Raw
 
 try:
     import pyahocorasick
@@ -193,12 +193,19 @@ def _worker() -> None:
 def packet_callback(packet: Any) -> None:
     """Scapy callback: extract fields and enqueue for worker threads."""
     try:
-        if not (packet.haslayer(IP) and packet.haslayer(TCP)):
+        if not packet.haslayer(IP):
+            metrics.record_packet()
+            return
+
+        if packet.haslayer(TCP):
+            dst_port = packet[TCP].dport
+        elif packet.haslayer(UDP):
+            dst_port = packet[UDP].dport
+        else:
             metrics.record_packet()
             return
 
         src_ip: str = packet[IP].src
-        dst_port: int = packet[TCP].dport
 
         if packet.haslayer(Raw):
             try:
