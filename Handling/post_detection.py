@@ -70,7 +70,33 @@ def _ensure_blocker_started():
             _blocker_thread.start()
 
 
+def _iptables_rule_exists(ip_address):
+    """Return True if an INPUT DROP rule for ip_address is already installed.
+
+    Prevents duplicate iptables rules accumulating across process restarts,
+    which would otherwise leak firewall rules indefinitely.
+    """
+    try:
+        result = subprocess.run(
+            ["iptables", "-C", "INPUT", "-s", ip_address, "-j", "DROP"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def _execute_block(ip_address, attack_type, port, response_time):
+    if _iptables_rule_exists(ip_address):
+        BLOCKED_IPS.add(ip_address)
+        log_event(
+            f"IP {ip_address} already blocked at firewall; skipping duplicate rule",
+            event_type="INFO",
+            src_ip=ip_address,
+        )
+        return
+
     block_start = time.time()
     try:
         result = subprocess.run(
