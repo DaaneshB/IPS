@@ -59,6 +59,7 @@ class PatternMatcher:
     def __init__(self, rules: list[dict[str, Any]]) -> None:
         self.rules = rules
         self.use_ahocorasick = AHOCORASICK_AVAILABLE
+        self.automaton = None
 
         if self.use_ahocorasick:
             self.automaton = pyahocorasick.Automaton()
@@ -73,6 +74,7 @@ class PatternMatcher:
             payload_lower = payload.lower()
 
             if self.use_ahocorasick:
+                assert self.automaton is not None
                 for _, (_, rule) in self.automaton.iter(payload_lower):
                     if dst_port in rule["ports"]:
                         return rule, time.time() - detection_start
