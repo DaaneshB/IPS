@@ -58,31 +58,34 @@ class PatternMatcher:
 
     def __init__(self, rules: list[dict[str, Any]]) -> None:
         self.rules = rules
+        # Pre-casefold patterns once at build time so the hot path never
+        # re-lowers them per packet.
+        self._folded_patterns: list[str] = [r["pattern"].casefold() for r in rules]
         self.use_ahocorasick = AHOCORASICK_AVAILABLE
         self.automaton = None
 
         if self.use_ahocorasick:
             self.automaton = pyahocorasick.Automaton()
             for idx, rule in enumerate(rules):
-                self.automaton.add_word(rule["pattern"].lower(), (idx, rule))
+                self.automaton.add_word(self._folded_patterns[idx], (idx, rule))
             self.automaton.make_automaton()
 
     def find_matches(self, payload: str, dst_port: int) -> tuple[Optional[dict], float]:
         detection_start = time.time()
 
         try:
-            payload_lower = payload.lower()
+            payload_folded = payload.casefold()
 
             if self.use_ahocorasick:
                 assert self.automaton is not None
-                for _, (_, rule) in self.automaton.iter(payload_lower):
+                for _, (_, rule) in self.automaton.iter(payload_folded):
                     if dst_port in rule["ports"]:
                         return rule, time.time() - detection_start
             else:
-                for rule in self.rules:
+                for idx, rule in enumerate(self.rules):
                     if dst_port not in rule["ports"]:
                         continue
-                    if rule["pattern"].lower() in payload_lower:
+                    if self._folded_patterns[idx] in payload_folded:
                         return rule, time.time() - detection_start
 
             return None, time.time() - detection_start
