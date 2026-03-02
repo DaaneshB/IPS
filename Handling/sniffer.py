@@ -229,7 +229,7 @@ def packet_callback(packet: Any) -> None:
         log_event(f"Packet processing error: {e}", event_type="ERROR")
 
 
-def start_sniffing() -> None:
+def _print_startup_banner() -> None:
     print("\n" + "=" * 60)
     print("SIGNATURE-BASED INTRUSION PREVENTION SYSTEM (IPS)")
     print("=" * 60)
@@ -249,6 +249,24 @@ def start_sniffing() -> None:
         "443 (HTTPS), 389 (LDAP), 636 (LDAP-SSL), 3306 (MySQL), 5432 (PostgreSQL)\n"
     )
     print("Press Ctrl+C to stop...\n")
+
+
+def _print_shutdown_summary(stats: dict[str, Any]) -> None:
+    print("\n" + "=" * 60)
+    print("IPS SHUTDOWN - PERFORMANCE SUMMARY")
+    print("=" * 60)
+    log_event(f"IPS stopped. Statistics: {stats}", event_type="INFO")
+    print(f"Total Packets Processed: {stats['packets_processed']}")
+    print(f"Avg Throughput: {stats['packets_per_second']} packets/sec")
+    print(f"Avg Detection Time: {stats['avg_detection_time_ms']}ms")
+    algo_type = "Aho-Corasick" if pattern_matcher.use_ahocorasick else "Naive String Matching"
+    print(f"Pattern Matching Algorithm: {algo_type}")
+    print(f"Worker Threads: {_NUM_WORKERS}")
+    print("=" * 60 + "\n")
+
+
+def start_sniffing() -> None:
+    _print_startup_banner()
 
     workers: list[threading.Thread] = []
     for i in range(_NUM_WORKERS):
@@ -270,19 +288,7 @@ def start_sniffing() -> None:
             _packet_queue.put(None)
         for t in workers:
             t.join(timeout=2)
-
-        stats = metrics.get_stats()
-        print("\n" + "=" * 60)
-        print("IPS SHUTDOWN - PERFORMANCE SUMMARY")
-        print("=" * 60)
-        log_event(f"IPS stopped. Statistics: {stats}", event_type="INFO")
-        print(f"Total Packets Processed: {stats['packets_processed']}")
-        print(f"Avg Throughput: {stats['packets_per_second']} packets/sec")
-        print(f"Avg Detection Time: {stats['avg_detection_time_ms']}ms")
-        algo_type = "Aho-Corasick" if pattern_matcher.use_ahocorasick else "Naive String Matching"
-        print(f"Pattern Matching Algorithm: {algo_type}")
-        print(f"Worker Threads: {_NUM_WORKERS}")
-        print("=" * 60 + "\n")
+        _print_shutdown_summary(metrics.get_stats())
 
 
 def _is_privileged() -> bool:
