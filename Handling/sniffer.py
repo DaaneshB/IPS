@@ -9,14 +9,11 @@ from collections import defaultdict, deque
 from typing import Any, Optional
 
 import Configurations.config as config
+from Handling.matcher import AHOCORASICK_AVAILABLE, PatternMatcher
 from Handling.post_detection import log_event, block_ip
 from scapy.all import sniff, IP, TCP, UDP, Raw
 
-try:
-    import pyahocorasick
-    AHOCORASICK_AVAILABLE = True
-except ImportError:
-    AHOCORASICK_AVAILABLE = False
+if not AHOCORASICK_AVAILABLE:
     print("Warning: pyahocorasick not installed. Falling back to naive pattern matching.")
     print("Install with: pip install pyahocorasick")
 
@@ -51,48 +48,6 @@ class PerformanceMetrics:
                 "packets_per_second": round(self.packets_per_second, 2),
                 "avg_detection_time_ms": round(avg_detection * 1000, 3),
             }
-
-
-class PatternMatcher:
-    """Aho-Corasick automaton for O(n+z) multi-pattern matching."""
-
-    def __init__(self, rules: list[dict[str, Any]]) -> None:
-        self.rules = rules
-        # Pre-casefold patterns once at build time so the hot path never
-        # re-lowers them per packet.
-        self._folded_patterns: list[str] = [r["pattern"].casefold() for r in rules]
-        self.use_ahocorasick = AHOCORASICK_AVAILABLE
-        self.automaton = None
-
-        if self.use_ahocorasick:
-            self.automaton = pyahocorasick.Automaton()
-            for idx, rule in enumerate(rules):
-                self.automaton.add_word(self._folded_patterns[idx], (idx, rule))
-            self.automaton.make_automaton()
-
-    def find_matches(self, payload: str, dst_port: int) -> tuple[Optional[dict], float]:
-        detection_start = time.time()
-
-        try:
-            payload_folded = payload.casefold()
-
-            if self.use_ahocorasick:
-                assert self.automaton is not None
-                for _, (_, rule) in self.automaton.iter(payload_folded):
-                    if dst_port in rule["ports"]:
-                        return rule, time.time() - detection_start
-            else:
-                for idx, rule in enumerate(self.rules):
-                    if dst_port not in rule["ports"]:
-                        continue
-                    if self._folded_patterns[idx] in payload_folded:
-                        return rule, time.time() - detection_start
-
-            return None, time.time() - detection_start
-
-        except Exception as e:
-            log_event(f"Error during pattern matching: {e}", event_type="ERROR")
-            return None, time.time() - detection_start
 
 
 class ThresholdTracker:
@@ -148,7 +103,10 @@ class ThresholdTracker:
 
 metrics = PerformanceMetrics()
 threshold_tracker = ThresholdTracker()
-pattern_matcher = PatternMatcher(config.RULES)
+pattern_matcher = PatternMatcher(
+    config.RULES,
+    on_error=lambda msg: log_event(msg, event_type="ERROR"),
+)
 
 # Worker queue for multi-threaded packet inspection
 _packet_queue: queue.Queue[Optional[tuple[str, str, int]]] = queue.Queue(maxsize=10_000)
