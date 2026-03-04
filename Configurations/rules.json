@@ -66,22 +66,22 @@
     },
     {
         "name": "Automated SQL Scanner (sqlmap)",
-        "pattern": "sqlmap",
+        "pattern": "User-Agent: sqlmap",
         "ports": [80, 8080, 443]
     },
     {
         "name": "Nikto Web Scanner",
-        "pattern": "Nikto",
+        "pattern": "User-Agent: Nikto",
         "ports": [80, 8080, 443]
     },
     {
         "name": "Nmap Service Scan",
-        "pattern": "NSE",
+        "pattern": "Nmap NSE",
         "ports": [80, 8080, 443, 22]
     },
     {
         "name": "Burp Suite Scanner",
-        "pattern": "burp",
+        "pattern": "User-Agent: Mozilla/5.0 (compatible; burp",
         "ports": [80, 8080, 443]
     },
     {
