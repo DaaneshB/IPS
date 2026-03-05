@@ -6,6 +6,17 @@ INTERFACE = "lo"
 LOG_FILE = "ips_events.log"
 BLOCKED_IPS = set()
 
+# Response mode: "block" installs firewall rules, "alert" only logs detections.
+MODE = "block"
+
+# Sliding-window blocking threshold: block a source after THRESHOLD_COUNT
+# detections within THRESHOLD_WINDOW_SECONDS, to reduce false-positive blocking.
+THRESHOLD_COUNT = 5
+THRESHOLD_WINDOW_SECONDS = 60
+
+# Source IPs that are never blocked (e.g. trusted scanners, gateways).
+ALLOWED_IPS = set()
+
 # Performance configuration for packet inspection pipeline
 PACKET_PROCESSING_CONFIG = {
     "store_packets": False,  # Optimize memory by not storing packets
