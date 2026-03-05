@@ -2,8 +2,8 @@
 import json
 import os
 
-INTERFACE = "lo"
-LOG_FILE = "ips_events.log"
+INTERFACE = os.environ.get("IPS_INTERFACE", "lo")
+LOG_FILE = os.environ.get("IPS_LOG_FILE", "ips_events.log")
 BLOCKED_IPS = set()
 
 # Response mode: "block" installs firewall rules, "alert" only logs detections.
