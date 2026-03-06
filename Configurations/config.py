@@ -48,6 +48,23 @@ def load_rules():
         raise RuntimeError(
             f"IPS refusing to start: {rules_file} contains no signatures"
         )
+
+    for idx, rule in enumerate(rules):
+        if not isinstance(rule, dict):
+            raise RuntimeError(f"IPS refusing to start: rule #{idx} is not an object")
+        missing = {"name", "pattern", "ports"} - rule.keys()
+        if missing:
+            raise RuntimeError(
+                f"IPS refusing to start: rule #{idx} missing keys {sorted(missing)}"
+            )
+        if not rule["pattern"]:
+            raise RuntimeError(
+                f"IPS refusing to start: rule '{rule['name']}' has an empty pattern"
+            )
+        if not isinstance(rule["ports"], list) or not rule["ports"]:
+            raise RuntimeError(
+                f"IPS refusing to start: rule '{rule['name']}' has no ports"
+            )
     return rules
 
 RULES = load_rules()
