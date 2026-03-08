@@ -51,11 +51,23 @@ class PatternMatcher:
                     if dst_port in rule["ports"]:
                         return rule, time.time() - detection_start
             else:
+                # Match Aho-Corasick semantics: return the rule whose pattern
+                # ends earliest in the payload, not merely the first by list order.
+                best_rule = None
+                best_end = None
                 for idx, rule in enumerate(self.rules):
-                    if dst_port not in rule["ports"]:
+                    pattern = self._folded_patterns[idx]
+                    if not pattern or dst_port not in rule["ports"]:
                         continue
-                    if self._folded_patterns[idx] in payload_folded:
-                        return rule, time.time() - detection_start
+                    pos = payload_folded.find(pattern)
+                    if pos == -1:
+                        continue
+                    end = pos + len(pattern) - 1
+                    if best_end is None or end < best_end:
+                        best_end = end
+                        best_rule = rule
+                if best_rule is not None:
+                    return best_rule, time.time() - detection_start
 
             return None, time.time() - detection_start
 
