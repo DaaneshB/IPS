@@ -31,7 +31,12 @@ class PatternMatcher:
         if self.use_ahocorasick:
             self.automaton = pyahocorasick.Automaton()
             for idx, rule in enumerate(rules):
-                self.automaton.add_word(self._folded_patterns[idx], (idx, rule))
+                pattern = self._folded_patterns[idx]
+                if not pattern:
+                    # An empty needle matches at every position; skip it so it
+                    # can't swamp detection or corrupt the automaton.
+                    continue
+                self.automaton.add_word(pattern, (idx, rule))
             self.automaton.make_automaton()
 
     def find_matches(self, payload: str, dst_port: int) -> tuple[Optional[dict], float]:
