@@ -25,8 +25,8 @@ pattern_matcher = PatternMatcher(
 )
 
 # Worker queue for multi-threaded packet inspection
-_packet_queue: queue.Queue[Optional[tuple[str, str, int]]] = queue.Queue(maxsize=10_000)
-_NUM_WORKERS = 2
+_packet_queue: queue.Queue[Optional[tuple[str, str, int]]] = queue.Queue(maxsize=config.QUEUE_MAXSIZE)
+_NUM_WORKERS = config.NUM_WORKERS
 
 
 def check_packet(payload: str, dst_port: int) -> tuple[Optional[dict], float]:
