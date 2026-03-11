@@ -17,6 +17,10 @@ THRESHOLD_WINDOW_SECONDS = 60
 # Source IPs that are never blocked (e.g. trusted scanners, gateways).
 ALLOWED_IPS = set()
 
+# Packet-inspection worker pool and bounded hand-off queue.
+NUM_WORKERS = int(os.environ.get("IPS_NUM_WORKERS", "2"))
+QUEUE_MAXSIZE = int(os.environ.get("IPS_QUEUE_MAXSIZE", "10000"))
+
 # Performance configuration for packet inspection pipeline
 PACKET_PROCESSING_CONFIG = {
     "store_packets": False,  # Optimize memory by not storing packets
