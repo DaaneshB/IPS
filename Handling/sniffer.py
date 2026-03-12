@@ -152,6 +152,7 @@ def start_sniffing() -> None:
         sniff(
             iface=config.INTERFACE,
             prn=packet_callback,
+            filter=config.BPF_FILTER or None,
             store=config.PACKET_PROCESSING_CONFIG["store_packets"],
             timeout=config.PACKET_PROCESSING_CONFIG["timeout"],
         )
