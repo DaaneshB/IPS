@@ -72,3 +72,18 @@ def load_rules():
     return rules
 
 RULES = load_rules()
+
+# Union of every port referenced by a signature. Capturing only this set with a
+# BPF filter keeps irrelevant traffic out of the Python inspection path.
+MONITORED_PORTS = sorted({port for rule in RULES for port in rule["ports"]})
+
+
+def build_bpf_filter(ports=MONITORED_PORTS):
+    """Return a libpcap filter expression limiting capture to monitored ports."""
+    if not ports:
+        return ""
+    port_expr = " or ".join(f"port {p}" for p in ports)
+    return f"(tcp or udp) and ({port_expr})"
+
+
+BPF_FILTER = build_bpf_filter()
