@@ -1,9 +1,17 @@
+import os
 import queue
 import subprocess
 import threading
 import time
 from datetime import datetime
 from Configurations.config import LOG_FILE, BLOCKED_IPS
+
+_IS_WINDOWS = os.name == "nt"
+
+
+def _rule_name(ip_address):
+    """Firewall rule name used for the Windows netsh backend."""
+    return f"IPS Block {ip_address}"
 
 
 _block_queue: "queue.Queue[tuple[str, str | None, int | None, float | None]]" = queue.Queue()
@@ -69,25 +77,37 @@ def _ensure_blocker_started():
             _blocker_thread.start()
 
 
-def _iptables_rule_exists(ip_address):
-    """Return True if an INPUT DROP rule for ip_address is already installed.
+def _firewall_rule_exists(ip_address):
+    """Return True if a block rule for ip_address is already installed.
 
-    Prevents duplicate iptables rules accumulating across process restarts,
-    which would otherwise leak firewall rules indefinitely.
+    Prevents duplicate firewall rules accumulating across process restarts,
+    which would otherwise leak rules indefinitely. Dispatches to netsh on
+    Windows and iptables elsewhere.
     """
+    if _IS_WINDOWS:
+        cmd = ["netsh", "advfirewall", "firewall", "show", "rule", f"name={_rule_name(ip_address)}"]
+    else:
+        cmd = ["iptables", "-C", "INPUT", "-s", ip_address, "-j", "DROP"]
     try:
-        result = subprocess.run(
-            ["iptables", "-C", "INPUT", "-s", ip_address, "-j", "DROP"],
-            capture_output=True,
-            timeout=5,
-        )
+        result = subprocess.run(cmd, capture_output=True, timeout=5)
         return result.returncode == 0
     except Exception:
         return False
 
 
+def _block_command(ip_address):
+    """Return the platform command that installs a block rule for ip_address."""
+    if _IS_WINDOWS:
+        return [
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            f"name={_rule_name(ip_address)}", "dir=in", "action=block",
+            f"remoteip={ip_address}",
+        ]
+    return ["iptables", "-A", "INPUT", "-s", ip_address, "-j", "DROP"]
+
+
 def _execute_block(ip_address, attack_type, port, response_time):
-    if _iptables_rule_exists(ip_address):
+    if _firewall_rule_exists(ip_address):
         BLOCKED_IPS.add(ip_address)
         log_event(
             f"IP {ip_address} already blocked at firewall; skipping duplicate rule",
@@ -99,7 +119,7 @@ def _execute_block(ip_address, attack_type, port, response_time):
     block_start = time.time()
     try:
         result = subprocess.run(
-            ["iptables", "-A", "INPUT", "-s", ip_address, "-j", "DROP"],
+            _block_command(ip_address),
             capture_output=True,
             timeout=5,
         )
