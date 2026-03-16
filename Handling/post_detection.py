@@ -18,6 +18,17 @@ _block_queue: "queue.Queue[tuple[str, str | None, int | None, float | None]]" = 
 _blocker_thread: threading.Thread | None = None
 _blocker_lock = threading.Lock()
 _log_lock = threading.Lock()
+_blocked_lock = threading.Lock()
+
+
+def _is_blocked(ip_address):
+    with _blocked_lock:
+        return ip_address in BLOCKED_IPS
+
+
+def _mark_blocked(ip_address):
+    with _blocked_lock:
+        BLOCKED_IPS.add(ip_address)
 
 
 def log_event(message, event_type="INFO", src_ip=None, attack_type=None, port=None, response_time=None):
@@ -108,7 +119,7 @@ def _block_command(ip_address):
 
 def _execute_block(ip_address, attack_type, port, response_time):
     if _firewall_rule_exists(ip_address):
-        BLOCKED_IPS.add(ip_address)
+        _mark_blocked(ip_address)
         log_event(
             f"IP {ip_address} already blocked at firewall; skipping duplicate rule",
             event_type="INFO",
@@ -137,7 +148,7 @@ def _execute_block(ip_address, attack_type, port, response_time):
                 port=port,
                 response_time=total_response,
             )
-            BLOCKED_IPS.add(ip_address)
+            _mark_blocked(ip_address)
         else:
             log_event(
                 f"Failed to block IP: {ip_address}",
@@ -159,7 +170,7 @@ def block_ip(ip_address, attack_type=None, port=None, response_time=None):
         port (int): Destination port of the attack
         response_time (float): Time from detection to block execution
     """
-    if ip_address in BLOCKED_IPS:
+    if _is_blocked(ip_address):
         return
     _ensure_blocker_started()
     _block_queue.put((ip_address, attack_type, port, response_time))
