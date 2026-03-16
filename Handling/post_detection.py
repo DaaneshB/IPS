@@ -56,8 +56,13 @@ def log_event(message, event_type="INFO", src_ip=None, attack_type=None, port=No
 
     with _log_lock:
         print(log_entry)
-        with open(LOG_FILE, "a", encoding="utf-8") as log_file:
-            log_file.write(log_entry + "\n")
+        try:
+            with open(LOG_FILE, "a", encoding="utf-8") as log_file:
+                log_file.write(log_entry + "\n")
+        except OSError as e:
+            # Never let a logging failure (disk full, permissions) take down a
+            # packet/blocker worker; the console line above still went out.
+            print(f"[{timestamp}] [ERROR] Failed to write log file: {e}")
 
 
 def _blocker_worker():
