@@ -4,7 +4,7 @@ A high-performance, signature-based Intrusion Prevention System built with Pytho
 
 ## Overview
 
-The IPS is engineered for production-grade network defense, continuously monitoring inbound TCP traffic across critical ports (FTP, SSH, SMTP, HTTP, HTTPS, MySQL, PostgreSQL) to detect and block malicious patterns in real-time. The system achieves sub-second response times from threat detection to firewall rule deployment, with throughput optimization supporting 1000+ packets per second.
+The IPS is engineered for production-grade network defense, continuously monitoring inbound TCP and UDP traffic across critical ports (FTP, SSH, SMTP, HTTP, HTTPS, LDAP, MySQL, PostgreSQL) to detect and block malicious patterns in real-time. The system achieves sub-second response times from threat detection to firewall rule deployment.
 
 ## Key Features
 
@@ -42,7 +42,7 @@ Detects and blocks 30+ attack patterns including:
 - Command injection (Linux and Windows variants)
 
 ### Automated IP Blocking with Sub-Second Response
-- Immediate iptables firewall rule deployment
+- Immediate firewall rule deployment (iptables on Linux, netsh on Windows)
 - Response time tracking from detection to block execution
 - Duplicate blocking prevention with in-memory cache
 - Error handling and retry logic
@@ -74,7 +74,7 @@ Detects and blocks 30+ attack patterns including:
    ↓
 3. Payload Extraction (Raw layer decoding)
    ↓
-4. Pattern Matching (Rule engine against 17+ signatures)
+4. Pattern Matching (Rule engine against 30+ signatures)
    ↓
 5. Threat Response (Automated IP blocking)
    ↓
