@@ -29,13 +29,18 @@ PACKET_PROCESSING_CONFIG = {
 
 # Load signature-based detection rules from JSON file
 # Rules cover 7+ critical ports: HTTP (80), HTTPS (443), FTP (21), SSH (22), SMTP (25), MySQL (3306), PostgreSQL (5432)
-def load_rules():
-    """Load detection rules from rules.json file.
-    
+def load_rules(rules_file=None):
+    """Load detection rules from a JSON file.
+
+    Args:
+        rules_file: Optional path to the rules file. Defaults to rules.json
+            next to this module. Accepting a path keeps the loader testable.
+
     Returns:
         list: List of rule dictionaries with 'name', 'pattern', and 'ports' keys
     """
-    rules_file = os.path.join(os.path.dirname(__file__), "rules.json")
+    if rules_file is None:
+        rules_file = os.path.join(os.path.dirname(__file__), "rules.json")
     try:
         with open(rules_file, 'r') as f:
             rules = json.load(f)
