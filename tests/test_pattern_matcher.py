@@ -23,3 +23,16 @@ def test_no_match_returns_none():
     rule, elapsed = m.find_matches("perfectly benign payload", 80)
     assert rule is None
     assert elapsed >= 0
+
+
+def test_pattern_present_but_wrong_port_does_not_match():
+    m = PatternMatcher(RULES)
+    # <script> is only registered for port 80, not 22.
+    rule, _ = m.find_matches("<script>alert(1)</script>", 22)
+    assert rule is None
+
+
+def test_pattern_matches_on_any_listed_port():
+    m = PatternMatcher(RULES)
+    rule, _ = m.find_matches("UNION SELECT password", 443)
+    assert rule["name"] == "SQLi"
