@@ -36,3 +36,10 @@ def test_pattern_matches_on_any_listed_port():
     m = PatternMatcher(RULES)
     rule, _ = m.find_matches("UNION SELECT password", 443)
     assert rule["name"] == "SQLi"
+
+
+def test_matching_is_case_insensitive():
+    m = PatternMatcher(RULES)
+    for payload in ("union select 1", "UnIoN sElEcT 1", "UNION SELECT 1"):
+        rule, _ = m.find_matches(payload, 80)
+        assert rule is not None and rule["name"] == "SQLi"
