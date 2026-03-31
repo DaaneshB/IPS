@@ -43,3 +43,20 @@ def test_matching_is_case_insensitive():
     for payload in ("union select 1", "UnIoN sElEcT 1", "UNION SELECT 1"):
         rule, _ = m.find_matches(payload, 80)
         assert rule is not None and rule["name"] == "SQLi"
+
+
+def test_returns_earliest_ending_match_when_multiple_present():
+    rules = [
+        {"name": "late", "pattern": "second", "ports": [80]},
+        {"name": "early", "pattern": "first", "ports": [80]},
+    ]
+    m = PatternMatcher(rules)
+    rule, _ = m.find_matches("the first then the second", 80)
+    assert rule["name"] == "early"
+
+
+def test_empty_pattern_never_matches():
+    rules = [{"name": "empty", "pattern": "", "ports": [80]}]
+    m = PatternMatcher(rules)
+    rule, _ = m.find_matches("any payload at all", 80)
+    assert rule is None
