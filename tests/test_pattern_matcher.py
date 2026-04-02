@@ -60,3 +60,14 @@ def test_empty_pattern_never_matches():
     m = PatternMatcher(rules)
     rule, _ = m.find_matches("any payload at all", 80)
     assert rule is None
+
+
+def test_on_error_callback_invoked_and_swallowed():
+    errors = []
+    m = PatternMatcher(RULES, on_error=errors.append)
+    # A non-string payload raises inside find_matches; it must not propagate.
+    rule, elapsed = m.find_matches(12345, 80)
+    assert rule is None
+    assert elapsed >= 0
+    assert len(errors) == 1
+    assert "pattern matching" in errors[0].lower()
