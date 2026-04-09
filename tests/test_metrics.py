@@ -1,4 +1,5 @@
 """Tests for PerformanceMetrics and ThresholdTracker."""
+import Handling.metrics as metrics_mod
 from Handling.metrics import PerformanceMetrics, ThresholdTracker
 
 
@@ -49,4 +50,16 @@ def test_state_resets_after_block():
     t.should_block("10.0.0.1")
     assert t.should_block("10.0.0.1") is True
     # after firing, the counter starts fresh rather than blocking every packet
+    assert t.should_block("10.0.0.1") is False
+
+
+def test_hits_outside_window_do_not_accumulate(monkeypatch):
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(metrics_mod.time, "time", lambda: clock["now"])
+    t = ThresholdTracker(count=3, window=60)
+    assert t.should_block("10.0.0.1") is False
+    clock["now"] += 61  # first hit ages out of the window
+    assert t.should_block("10.0.0.1") is False
+    clock["now"] += 61  # second hit ages out too
+    # despite three total calls, no two fall inside the same 60s window
     assert t.should_block("10.0.0.1") is False
