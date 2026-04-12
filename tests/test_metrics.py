@@ -63,3 +63,15 @@ def test_hits_outside_window_do_not_accumulate(monkeypatch):
     clock["now"] += 61  # second hit ages out too
     # despite three total calls, no two fall inside the same 60s window
     assert t.should_block("10.0.0.1") is False
+
+
+def test_sweep_evicts_fully_expired_ip_entries(monkeypatch):
+    clock = {"now": 5000.0}
+    monkeypatch.setattr(metrics_mod.time, "time", lambda: clock["now"])
+    t = ThresholdTracker(count=10, window=60)
+    t.should_block("10.0.0.9")
+    assert "10.0.0.9" in t.hits
+    # advance past the window and past the sweep interval, then touch another IP
+    clock["now"] += 60 + ThresholdTracker._SWEEP_INTERVAL + 1
+    t.should_block("10.0.0.10")
+    assert "10.0.0.9" not in t.hits
