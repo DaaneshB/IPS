@@ -1,4 +1,7 @@
 """Tests for logging and firewall-response logic."""
+import subprocess
+import types
+
 import Handling.post_detection as pd
 
 
@@ -33,3 +36,30 @@ def test_log_event_omits_absent_optional_fields(tmp_path, monkeypatch):
     assert "[INFO] startup" in written
     assert "SRC_IP" not in written
     assert "ATTACK" not in written
+
+
+def test_block_command_uses_iptables_on_posix(monkeypatch):
+    monkeypatch.setattr(pd, "_IS_WINDOWS", False)
+    cmd = pd._block_command("1.2.3.4")
+    assert cmd[0] == "iptables"
+    assert "1.2.3.4" in cmd
+
+
+def test_block_command_uses_netsh_on_windows(monkeypatch):
+    monkeypatch.setattr(pd, "_IS_WINDOWS", True)
+    cmd = pd._block_command("1.2.3.4")
+    assert cmd[0] == "netsh"
+    assert any("remoteip=1.2.3.4" == part for part in cmd)
+
+
+def test_firewall_rule_exists_reflects_return_code(monkeypatch):
+    monkeypatch.setattr(pd, "_IS_WINDOWS", False)
+
+    def fake_run(cmd, **kwargs):
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert pd._firewall_rule_exists("1.2.3.4") is True
+
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: types.SimpleNamespace(returncode=1))
+    assert pd._firewall_rule_exists("1.2.3.4") is False
