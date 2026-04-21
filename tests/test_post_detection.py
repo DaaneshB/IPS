@@ -63,3 +63,23 @@ def test_firewall_rule_exists_reflects_return_code(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: types.SimpleNamespace(returncode=1))
     assert pd._firewall_rule_exists("1.2.3.4") is False
+
+
+def test_block_ip_enqueues_new_ip(monkeypatch):
+    enqueued = []
+    monkeypatch.setattr(pd, "_ensure_blocker_started", lambda: None)
+    monkeypatch.setattr(pd._block_queue, "put", lambda item: enqueued.append(item))
+
+    pd.block_ip("203.0.113.7", attack_type="SQLi", port=80)
+    assert len(enqueued) == 1
+    assert enqueued[0][0] == "203.0.113.7"
+
+
+def test_block_ip_skips_already_blocked_ip(monkeypatch):
+    enqueued = []
+    monkeypatch.setattr(pd, "_ensure_blocker_started", lambda: None)
+    monkeypatch.setattr(pd._block_queue, "put", lambda item: enqueued.append(item))
+    pd._mark_blocked("203.0.113.8")
+
+    pd.block_ip("203.0.113.8")
+    assert enqueued == []
