@@ -83,3 +83,28 @@ def test_block_ip_skips_already_blocked_ip(monkeypatch):
 
     pd.block_ip("203.0.113.8")
     assert enqueued == []
+
+
+def test_execute_block_installs_rule_and_marks_blocked(tmp_path, monkeypatch):
+    monkeypatch.setattr(pd, "LOG_FILE", str(tmp_path / "e.log"))
+    monkeypatch.setattr(pd, "_firewall_rule_exists", lambda ip: False)
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    pd._execute_block("198.51.100.4", "SQLi", 80, 0.01)
+    assert pd._is_blocked("198.51.100.4") is True
+    assert len(calls) == 1
+
+
+def test_execute_block_does_not_mark_when_firewall_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(pd, "LOG_FILE", str(tmp_path / "e.log"))
+    monkeypatch.setattr(pd, "_firewall_rule_exists", lambda ip: False)
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: types.SimpleNamespace(returncode=1))
+
+    pd._execute_block("198.51.100.5", "SQLi", 80, 0.01)
+    assert pd._is_blocked("198.51.100.5") is False
