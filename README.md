@@ -81,3 +81,13 @@ Detects and blocks 30+ attack patterns including:
 6. Forensic Logging (Detailed event documentation)
 ```
 
+## Running the Tests
+
+The detection engine, configuration loader, metrics, and response logic are
+covered by a pytest suite that runs without root or a live interface:
+
+```
+pip install -r REQUIREMENTS.txt
+pytest
+```
+
