@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IPS — SIEM Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e;
+    --alert: #f85149; --block: #d29922; --ok: #3fb950; --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; padding: 16px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  header h1 { font-size: 18px; letter-spacing: .04em; }
+  #conn { font-size: 12px; color: var(--muted); }
+  #conn.live { color: var(--ok); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .card .value { font-size: 26px; font-weight: 600; margin-top: 4px; }
+  .card .value.alert { color: var(--alert); } .card .value.block { color: var(--block); }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .panel h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 4px 8px; border-bottom: 1px solid #21262d; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  #feed-wrap { max-height: 420px; overflow-y: auto; }
+  .tag { padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .tag.ALERT { background: rgba(248,81,73,.15); color: var(--alert); }
+  .tag.BLOCK { background: rgba(210,153,34,.18); color: var(--block); }
+  .tag.INFO  { background: rgba(88,166,255,.12); color: var(--accent); }
+  .tag.WARNING, .tag.ERROR { background: rgba(210,153,34,.18); color: var(--block); }
+</style>
+</head>
+<body>
+<header>
+  <h1>IPS — SIEM DASHBOARD</h1>
+  <span id="conn">connecting…</span>
+</header>
+
+<div class="cards">
+  <div class="card"><div class="label">Total Events</div><div class="value" id="c-total">0</div></div>
+  <div class="card"><div class="label">Alerts</div><div class="value alert" id="c-alerts">0</div></div>
+  <div class="card"><div class="label">Blocked IPs</div><div class="value block" id="c-blocked">0</div></div>
+  <div class="card"><div class="label">Avg Detection</div><div class="value" id="c-avg">0 ms</div></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Live Event Feed</h2>
+    <div id="feed-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Type</th><th>Source IP</th><th>Port</th><th>Attack</th></tr></thead>
+        <tbody id="feed"></tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="panel" style="margin-bottom:12px">
+      <h2>Top Attacking Sources</h2>
+      <table><thead><tr><th>IP</th><th>Alerts</th></tr></thead><tbody id="top-sources"></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>Blocked IPs</h2>
+      <table><thead><tr><th>IP</th><th>Blocked At</th></tr></thead><tbody id="blocked"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAX_ROWS = 100;
+const esc = s => String(s ?? "—").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function addRow(ev, prepend = true) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${esc(ev.timestamp)}</td>` +
+    `<td><span class="tag ${esc(ev.event_type)}">${esc(ev.event_type)}</span></td>` +
+    `<td>${esc(ev.src_ip)}</td><td>${esc(ev.port)}</td><td>${esc(ev.attack ?? ev.message)}</td>`;
+  const feed = document.getElementById("feed");
+  prepend ? feed.prepend(tr) : feed.append(tr);
+  while (feed.rows.length > MAX_ROWS) feed.deleteRow(-1);
+}
+
+async function refreshStats() {
+  const r = await fetch("/api/stats");
+  if (!r.ok) return;
+  const s = await r.json();
+  document.getElementById("c-total").textContent = s.total_events;
+  document.getElementById("c-alerts").textContent = s.by_type.ALERT || 0;
+  document.getElementById("c-blocked").textContent = s.blocked_ips.length;
+  document.getElementById("c-avg").textContent = s.avg_response_ms + " ms";
+  document.getElementById("top-sources").innerHTML =
+    s.top_sources.map(t => `<tr><td>${esc(t.ip)}</td><td>${t.alerts}</td></tr>`).join("");
+  document.getElementById("blocked").innerHTML =
+    s.blocked_ips.map(b => `<tr><td>${esc(b.ip)}</td><td>${esc(b.blocked_at)}</td></tr>`).join("");
+}
+
+async function backfill() {
+  const r = await fetch("/api/events/recent");
+  if (!r.ok) return;
+  (await r.json()).slice(-MAX_ROWS).forEach(ev => addRow(ev));
+}
+
+function connect() {
+  const es = new EventSource("/api/events/stream");
+  const conn = document.getElementById("conn");
+  es.onopen = () => { conn.textContent = "● live"; conn.className = "live"; };
+  es.onerror = () => { conn.textContent = "reconnecting…"; conn.className = ""; };
+  es.onmessage = m => addRow(JSON.parse(m.data));
+}
+
+backfill().then(() => { connect(); refreshStats(); setInterval(refreshStats, 5000); });
+</script>
+</body>
+</html>
