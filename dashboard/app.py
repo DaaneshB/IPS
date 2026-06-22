@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, Response, jsonify, send_from_directory
 
 # Allow `python dashboard/app.py` as well as `python -m dashboard.app`.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,5 +47,35 @@ def stats():
     return jsonify(payload)
 
 
+
+@app.route("/api/events/recent")
+def recent_events():
+    """Last 100 events, used by the page to backfill the feed on load."""
+    events = log_reader.read_events(LOG_FILE, limit=100)
+    return jsonify(events)
+
+
+@app.route("/api/events/stream")
+def stream():
+    """Server-sent events: push each new log entry to the browser as JSON.
+
+    SSE was chosen over WebSockets because the data flow is strictly
+    one-directional (server -> browser), it works over plain HTTP with
+    automatic reconnection built into EventSource, and it needs no extra
+    dependencies — important for keeping the demo reviewable end to end.
+    """
+    import json
+
+    def generate():
+        for event in log_reader.follow(LOG_FILE):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=int(os.environ.get("IPS_DASHBOARD_PORT", "5000")), debug=False)
+    app.run(host="127.0.0.1", port=int(os.environ.get("IPS_DASHBOARD_PORT", "5000")), debug=False, threaded=True)
