@@ -90,3 +90,87 @@ def read_events(path: str, limit: Optional[int] = None) -> list[dict]:
     if limit is not None and len(events) > limit:
         events = events[-limit:]
     return events
+
+
+def follow(path: str, poll_interval: float = 0.5) -> Iterator[dict]:
+    """Yield parsed events as they are appended to the log (like `tail -f`).
+
+    Implemented with polling rather than inotify so it behaves identically on
+    Linux, macOS and Windows — the same platforms the IPS firewall backends
+    already support. Handles the file not existing yet (dashboard started
+    before the IPS/simulator) and truncation/rotation (size shrinks -> seek
+    back to the start).
+    """
+    import os
+    import time
+
+    position = 0
+    while True:
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            time.sleep(poll_interval)
+            continue
+
+        if size < position:  # rotated or truncated
+            position = 0
+
+        if size > position:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                f.seek(position)
+                for line in f:
+                    parsed = parse_line(line)
+                    if parsed:
+                        yield parsed
+                position = f.tell()
+        time.sleep(poll_interval)
+
+
+def aggregate(events: list[dict], timeline_bucket_seconds: int = 60) -> dict:
+    """Reduce a list of parsed events to the aggregates the dashboard renders.
+
+    Aggregation lives server-side (not in the browser) so the stats endpoint
+    stays cheap to render for any client and the numbers are computed in one
+    audited place.
+    """
+    by_type: dict[str, int] = {}
+    by_attack: dict[str, int] = {}
+    source_counts: dict[str, int] = {}
+    blocked_ips: dict[str, str] = {}
+    timeline: dict[str, dict[str, int]] = {}
+    response_times: list[float] = []
+
+    for ev in events:
+        by_type[ev["event_type"]] = by_type.get(ev["event_type"], 0) + 1
+
+        if ev["event_type"] == "ALERT":
+            if ev["attack"]:
+                by_attack[ev["attack"]] = by_attack.get(ev["attack"], 0) + 1
+            if ev["src_ip"]:
+                source_counts[ev["src_ip"]] = source_counts.get(ev["src_ip"], 0) + 1
+            if ev["response_time_ms"] is not None:
+                response_times.append(ev["response_time_ms"])
+
+        if ev["event_type"] == "BLOCK" and ev["src_ip"]:
+            blocked_ips[ev["src_ip"]] = ev["timestamp"]
+
+        bucket_epoch = int(ev["epoch"] // timeline_bucket_seconds) * timeline_bucket_seconds
+        bucket_key = datetime.fromtimestamp(bucket_epoch).strftime("%H:%M")
+        bucket = timeline.setdefault(bucket_key, {"total": 0, "alerts": 0})
+        bucket["total"] += 1
+        if ev["event_type"] == "ALERT":
+            bucket["alerts"] += 1
+
+    top_sources = sorted(source_counts.items(), key=lambda kv: kv[1], reverse=True)[:10]
+
+    return {
+        "total_events": len(events),
+        "by_type": by_type,
+        "by_attack": by_attack,
+        "top_sources": [{"ip": ip, "alerts": n} for ip, n in top_sources],
+        "blocked_ips": [{"ip": ip, "blocked_at": ts} for ip, ts in blocked_ips.items()],
+        "timeline": [
+            {"time": k, **v} for k, v in sorted(timeline.items())
+        ],
+        "avg_response_ms": round(sum(response_times) / len(response_times), 3) if response_times else 0,
+    }
