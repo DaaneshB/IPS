@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>IPS — SIEM Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0d1117; --panel: #161b22; --border: #30363d;
@@ -48,6 +49,11 @@
   <div class="card"><div class="label">Avg Detection</div><div class="value" id="c-avg">0 ms</div></div>
 </div>
 
+<div class="grid" style="margin-bottom:12px">
+  <div class="panel"><h2>Events Over Time (per minute)</h2><canvas id="timeline" height="90"></canvas></div>
+  <div class="panel"><h2>Attack Mix</h2><canvas id="attackmix" height="180"></canvas></div>
+</div>
+
 <div class="grid">
   <div class="panel">
     <h2>Live Event Feed</h2>
@@ -84,6 +90,46 @@ function addRow(ev, prepend = true) {
   while (feed.rows.length > MAX_ROWS) feed.deleteRow(-1);
 }
 
+let timelineChart, mixChart;
+const PALETTE = ["#f85149","#d29922","#58a6ff","#3fb950","#bc8cff","#f0883e","#79c0ff","#ff7b72","#d2a8ff","#7ee787"];
+
+function renderCharts(s) {
+  const labels = s.timeline.map(p => p.time);
+  const totals = s.timeline.map(p => p.total);
+  const alerts = s.timeline.map(p => p.alerts);
+  if (!timelineChart) {
+    timelineChart = new Chart(document.getElementById("timeline"), {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "All events", data: totals, borderColor: "#58a6ff", backgroundColor: "rgba(88,166,255,.15)", fill: true, tension: .3, pointRadius: 0 },
+        { label: "Alerts", data: alerts, borderColor: "#f85149", backgroundColor: "rgba(248,81,73,.15)", fill: true, tension: .3, pointRadius: 0 },
+      ]},
+      options: { animation: false, plugins: { legend: { labels: { color: "#8b949e" } } },
+        scales: { x: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } },
+                  y: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" }, beginAtZero: true } } }
+    });
+  } else {
+    timelineChart.data.labels = labels;
+    timelineChart.data.datasets[0].data = totals;
+    timelineChart.data.datasets[1].data = alerts;
+    timelineChart.update("none");
+  }
+
+  const names = Object.keys(s.by_attack);
+  const counts = names.map(n => s.by_attack[n]);
+  if (!mixChart) {
+    mixChart = new Chart(document.getElementById("attackmix"), {
+      type: "doughnut",
+      data: { labels: names, datasets: [{ data: counts, backgroundColor: PALETTE, borderColor: "#161b22" }] },
+      options: { animation: false, plugins: { legend: { position: "right", labels: { color: "#8b949e", boxWidth: 10, font: { size: 10 } } } } }
+    });
+  } else {
+    mixChart.data.labels = names;
+    mixChart.data.datasets[0].data = counts;
+    mixChart.update("none");
+  }
+}
+
 async function refreshStats() {
   const r = await fetch("/api/stats");
   if (!r.ok) return;
@@ -96,6 +142,7 @@ async function refreshStats() {
     s.top_sources.map(t => `<tr><td>${esc(t.ip)}</td><td>${t.alerts}</td></tr>`).join("");
   document.getElementById("blocked").innerHTML =
     s.blocked_ips.map(b => `<tr><td>${esc(b.ip)}</td><td>${esc(b.blocked_at)}</td></tr>`).join("");
+  renderCharts(s);
 }
 
 async function backfill() {
