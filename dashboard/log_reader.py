@@ -92,7 +92,7 @@ def read_events(path: str, limit: Optional[int] = None) -> list[dict]:
     return events
 
 
-def follow(path: str, poll_interval: float = 0.5) -> Iterator[dict]:
+def follow(path: str, poll_interval: float = 0.5, from_start: bool = False) -> Iterator[dict]:
     """Yield parsed events as they are appended to the log (like `tail -f`).
 
     Implemented with polling rather than inotify so it behaves identically on
@@ -100,17 +100,25 @@ def follow(path: str, poll_interval: float = 0.5) -> Iterator[dict]:
     already support. Handles the file not existing yet (dashboard started
     before the IPS/simulator) and truncation/rotation (size shrinks -> seek
     back to the start).
+
+    By default the generator starts at the current end of file: the dashboard
+    backfills history through read_events(), so replaying the whole file here
+    would show every event twice. from_start=True keeps full replay available
+    for tests and offline analysis.
     """
     import os
     import time
 
-    position = 0
+    position = None
     while True:
         try:
             size = os.path.getsize(path)
         except OSError:
             time.sleep(poll_interval)
             continue
+
+        if position is None:
+            position = 0 if from_start else size
 
         if size < position:  # rotated or truncated
             position = 0
