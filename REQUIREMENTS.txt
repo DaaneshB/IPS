@@ -1,4 +1,9 @@
+# Capture + detection pipeline
 scapy>=2.4.5
-pyahocorasick>=2.1.0
-pytest>=7.0.0
+pyahocorasick>=2.1.0   # optional: matcher falls back to naive scanning without it
+
+# SIEM dashboard (dashboard/) and demo tooling (tools/) — stdlib + flask only
 flask>=3.0.0
+
+# Test suite
+pytest>=7.0.0
