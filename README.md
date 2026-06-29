@@ -91,3 +91,19 @@ pip install -r REQUIREMENTS.txt
 pytest
 ```
 
+
+## Live Demo — Traffic Simulator
+
+The IPS can be demonstrated without root, scapy capture, or real attack
+traffic. `tools/traffic_simulator.py` replays benign and malicious payloads
+through the **production** `PatternMatcher` and threshold-blocking logic —
+only packet capture and the firewall side effect are bypassed. Simulated
+sources use RFC 5737 documentation addresses.
+
+```
+python tools/traffic_simulator.py --rate 5 --attack-ratio 0.3
+```
+
+Flags: `--rate` events/sec, `--duration` seconds (0 = run until Ctrl+C),
+`--attack-ratio` fraction of malicious events, `--seed` for reproducible
+runs, `--log-file` to override the log path.
