@@ -83,3 +83,75 @@ peeled off the *right-hand end* of the line, accepting only known keys.
   current end of file, keep `from_start=True` for tests. Lesson — always
   smoke-test the composed system, not just units; both halves were
   individually "correct".
+
+## 3. Dashboard Server (`dashboard/app.py`)
+
+**What:** Flask app with three read endpoints — `/api/stats` (aggregates),
+`/api/events/recent` (backfill), `/api/events/stream` (live SSE) — plus the
+static page.
+
+**Why:**
+- *Why Flask?* Already used in my melanoma-detector project, no async
+  framework needed for one long-lived stream per viewer, and every line is
+  explainable. The dashboard is I/O-light; the heavy lifting (detection)
+  happens in the IPS process.
+- *Why Server-Sent Events instead of WebSockets?* The data flow is strictly
+  one-directional (server → browser). SSE runs over plain HTTP, needs no
+  extra dependency, and `EventSource` reconnects automatically. WebSockets
+  would buy bidirectionality nobody uses and cost an extra library.
+- *Why is the dashboard read-only?* A monitoring surface must not be a
+  control surface. There is deliberately no endpoint to unblock an IP,
+  change mode, or edit rules — a compromised dashboard can observe but not
+  disarm the IPS. (Principle: separation of duties.)
+- *Why cap parsing at 5,000 events per stats request?* Bounded work per
+  request keeps response time flat after days of logging. Configurable via
+  `IPS_DASHBOARD_MAX_EVENTS`.
+- *Why `threaded=True`?* Each SSE viewer holds a connection open; the
+  default single-threaded dev server would deadlock the stats endpoint.
+- The server binds 127.0.0.1, not 0.0.0.0 — a security tool's demo should
+  not itself open an unauthenticated network listener.
+
+## 4. Dashboard UI (`dashboard/static/index.html`)
+
+**What:** Single HTML file, dark SOC-style theme. Summary cards (events,
+alerts, blocked IPs, avg detection ms), live feed table, events-over-time
+line chart, attack-mix doughnut, top attackers and blocked-IP tables.
+
+**Why:**
+- *Why one file, vanilla JS + Chart.js from CDN?* No build step, no
+  toolchain to defend. Anyone can View Source and account for every line.
+- *Why escape every value into HTML (`esc()`)?* Log content includes raw
+  attack payloads — literally `<script>` tags. Rendering unescaped log data
+  in a security dashboard would make the dashboard itself XSS-able by the
+  attacker it is displaying. This mirrors a real SIEM concern (log injection).
+- *Feed capped at 100 rows; charts update with `animation: false`* — the
+  page must stay responsive during sustained event rates.
+- Backfill via `/api/events/recent`, then live via SSE; stats poll every 5 s.
+
+## 5. Testing Approach
+
+- Parser: exact field extraction, pipe-in-message edge case, malformed-line
+  tolerance, aggregation math, timeline bucketing, empty inputs.
+- Simulator: RFC 5737 containment, payload/port correctness against every
+  rule, seed reproducibility, attack-ratio statistics, and the honesty
+  property — every generated attack must trip the real matcher.
+- End-to-end: `main()` writes a log the parser reads back (round-trip),
+  using `monkeypatch` on `LOG_FILE` like the existing suite does.
+- Naming/style follows the existing tests (`test_<behavior>` prose names,
+  `tmp_path`/`monkeypatch` fixtures) so the suite reads as one voice.
+
+## 6. Commit Discipline
+
+Each file landed in two focused commits (skeleton/core, then enhancement) so
+the history documents the build order, plus one standalone bugfix commit for
+the SSE duplication issue found in integration testing — kept separate
+because bugfixes hidden inside feature commits are unauditable.
+
+## Running the Demo
+
+```
+pip install -r REQUIREMENTS.txt
+python -m dashboard.app                          # terminal 1 — dashboard
+python tools/traffic_simulator.py --rate 5       # terminal 2 — traffic
+# open http://127.0.0.1:5000
+```
