@@ -107,3 +107,20 @@ python tools/traffic_simulator.py --rate 5 --attack-ratio 0.3
 Flags: `--rate` events/sec, `--duration` seconds (0 = run until Ctrl+C),
 `--attack-ratio` fraction of malicious events, `--seed` for reproducible
 runs, `--log-file` to override the log path.
+
+## SIEM Dashboard
+
+A read-only, SOC-style dashboard over `ips_events.log`: live event feed
+(server-sent events), events-over-time and attack-mix charts, top attacking
+sources, and blocked IPs. Works with the real sniffer or the simulator.
+
+```
+pip install -r REQUIREMENTS.txt
+python -m dashboard.app                      # terminal 1
+python tools/traffic_simulator.py --rate 5   # terminal 2 (or run the real IPS)
+# open http://127.0.0.1:5000
+```
+
+The dashboard binds to localhost and exposes no write endpoints by design —
+monitoring must not double as a control plane. See `learning.md` for the
+full design rationale.
