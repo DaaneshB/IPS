@@ -121,3 +121,36 @@ def inject(payload: str, port: int, src_ip: Optional[str] = None) -> dict:
         )
 
     return result
+
+
+def monitored_ports() -> list[int]:
+    """Ports the loaded signatures actually cover — populates the port picker."""
+    return list(config.MONITORED_PORTS)
+
+
+def attack_presets(limit: int = 6) -> list[dict]:
+    """A few ready-to-inject example requests derived from the real rules.
+
+    Presets are built from live signatures (not hand-typed in the frontend)
+    so a preset can never drift out of sync with the rule set: every attack
+    preset here is guaranteed to trip a real detection. A benign preset is
+    included so the analyst can also demonstrate a clean pass.
+    """
+    presets: list[dict] = [{
+        "label": "Benign request",
+        "payload": "GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0\r\n\r\n",
+        "port": 80,
+        "attack": False,
+    }]
+
+    for rule in config.RULES[:limit]:
+        port = rule["ports"][0]
+        pattern = rule["pattern"]
+        if port in (80, 8080, 443):
+            payload = (f"GET /search?q={pattern} HTTP/1.1\r\n"
+                       f"Host: example.com\r\nUser-Agent: Mozilla/5.0\r\n\r\n")
+        else:
+            payload = f"{pattern}\r\n"
+        presets.append({"label": rule["name"], "payload": payload, "port": port, "attack": True})
+
+    return presets
