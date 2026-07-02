@@ -4,22 +4,25 @@ Run from the repo root:
 
     python -m dashboard.app            # http://127.0.0.1:5000
 
-The app is read-only by design: it tails and aggregates ips_events.log but
-has no endpoint that can change IPS configuration or firewall state. A
-monitoring surface should never be a control surface — a compromised or
-misused dashboard must not be able to unblock attackers or disable rules.
+The dashboard tails and aggregates ips_events.log and offers an injection
+panel that submits *synthetic* requests to the real detection pipeline. That
+is the only write path, and it is strictly input, not control: no endpoint
+can change a rule, the mode, or a firewall entry, and injection never invokes
+the real firewall backend. A monitoring surface must never become a control
+surface — a misused dashboard still cannot unblock attackers or disable rules.
+Injection can be disabled entirely with IPS_DASHBOARD_ALLOW_INJECT=0.
 """
 from __future__ import annotations
 
 import os
 import sys
 
-from flask import Flask, Response, jsonify, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 # Allow `python dashboard/app.py` as well as `python -m dashboard.app`.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dashboard import log_reader
+from dashboard import injector, log_reader
 
 # Reuse the exact path the IPS writes to (honours the IPS_LOG_FILE override),
 # so pointing the dashboard at the wrong file is impossible by default.
@@ -30,6 +33,10 @@ LOG_FILE = config.LOG_FILE
 # Bound how much history the stats endpoint parses per request so response
 # time stays flat even after days of logging.
 MAX_EVENTS = int(os.environ.get("IPS_DASHBOARD_MAX_EVENTS", "5000"))
+
+# Injection is on by default for demos; set to 0 to serve a pure read-only
+# monitoring view with no way to submit traffic at all.
+ALLOW_INJECT = os.environ.get("IPS_DASHBOARD_ALLOW_INJECT", "1") != "0"
 
 app = Flask(__name__, static_folder="static")
 
@@ -75,6 +82,40 @@ def stream():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+
+@app.route("/api/inject/presets")
+def inject_presets():
+    """Ports and ready-made example payloads for the injection panel."""
+    return jsonify({
+        "enabled": ALLOW_INJECT,
+        "ports": injector.monitored_ports(),
+        "presets": injector.attack_presets(),
+    })
+
+
+@app.route("/api/inject", methods=["POST"])
+def inject():
+    """Feed one synthetic request through the real IPS detection pipeline.
+
+    Returns what the IPS decided (matched signature, detection latency,
+    whether the threshold produced a simulated block). The logged event also
+    reaches the live feed over SSE, so the analyst sees it land in real time.
+    """
+    if not ALLOW_INJECT:
+        return jsonify({"error": "injection is disabled on this dashboard"}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        result = injector.inject(
+            payload=data.get("payload"),
+            port=data.get("port"),
+            src_ip=data.get("src_ip"),
+        )
+    except injector.InjectionError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(result)
 
 
 if __name__ == "__main__":
