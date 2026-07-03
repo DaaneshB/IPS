@@ -34,6 +34,23 @@
   .tag.BLOCK { background: rgba(210,153,34,.18); color: var(--block); }
   .tag.INFO  { background: rgba(88,166,255,.12); color: var(--accent); }
   .tag.WARNING, .tag.ERROR { background: rgba(210,153,34,.18); color: var(--block); }
+  .inject { display: grid; grid-template-columns: 1fr 120px auto; gap: 8px; align-items: start; }
+  .inject textarea { width: 100%; min-height: 54px; resize: vertical; background: #0d1117; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: 12px ui-monospace, Consolas, monospace; }
+  .inject input, .inject select { background: #0d1117; color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 8px; font: 12px "Segoe UI", system-ui, sans-serif; width: 100%; }
+  .inject .col { display: flex; flex-direction: column; gap: 6px; }
+  .btn { background: var(--accent); color: #0d1117; border: 0; border-radius: 6px; padding: 8px 14px;
+    font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 14px;
+    padding: 3px 10px; font-size: 11px; cursor: pointer; }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
+  #inject-result { margin-top: 8px; font-size: 12px; font-family: ui-monospace, monospace; min-height: 16px; }
+  #inject-result.hit { color: var(--alert); } #inject-result.clean { color: var(--ok); }
+  #inject-result.err { color: var(--block); }
 </style>
 </head>
 <body>
@@ -47,6 +64,24 @@
   <div class="card"><div class="label">Alerts</div><div class="value alert" id="c-alerts">0</div></div>
   <div class="card"><div class="label">Blocked IPs</div><div class="value block" id="c-blocked">0</div></div>
   <div class="card"><div class="label">Avg Detection</div><div class="value" id="c-avg">0 ms</div></div>
+</div>
+
+<div class="panel" id="inject-panel" style="margin-bottom:16px">
+  <h2>Inject Synthetic Traffic</h2>
+  <div class="presets" id="presets"></div>
+  <div class="inject">
+    <div class="col">
+      <textarea id="inj-payload" placeholder="Request payload, e.g.  GET /search?q=UNION SELECT ... HTTP/1.1"></textarea>
+    </div>
+    <div class="col">
+      <select id="inj-port" title="Destination port"></select>
+      <input id="inj-ip" placeholder="src IP (optional)" />
+    </div>
+    <div class="col">
+      <button class="btn" id="inj-send">Inject &raquo;</button>
+    </div>
+  </div>
+  <div id="inject-result"></div>
 </div>
 
 <div class="grid" style="margin-bottom:12px">
@@ -158,6 +193,65 @@ function connect() {
   es.onerror = () => { conn.textContent = "reconnecting…"; conn.className = ""; };
   es.onmessage = m => addRow(JSON.parse(m.data));
 }
+
+let PRESETS = [];
+
+async function loadPresets() {
+  const r = await fetch("/api/inject/presets");
+  if (!r.ok) return;
+  const cfg = await r.json();
+  const panel = document.getElementById("inject-panel");
+  if (!cfg.enabled) { panel.style.display = "none"; return; }
+
+  const portSel = document.getElementById("inj-port");
+  portSel.innerHTML = cfg.ports.map(p => `<option value="${p}">${p}</option>`).join("");
+
+  PRESETS = cfg.presets;
+  document.getElementById("presets").innerHTML =
+    PRESETS.map((p, i) => `<button class="chip" data-i="${i}">${esc(p.label)}</button>`).join("");
+  document.querySelectorAll("#presets .chip").forEach(chip => {
+    chip.onclick = () => {
+      const p = PRESETS[chip.dataset.i];
+      document.getElementById("inj-payload").value = p.payload;
+      document.getElementById("inj-port").value = p.port;
+    };
+  });
+}
+
+async function sendInjection() {
+  const out = document.getElementById("inject-result");
+  const payload = document.getElementById("inj-payload").value;
+  const port = parseInt(document.getElementById("inj-port").value, 10);
+  const src_ip = document.getElementById("inj-ip").value.trim();
+  if (!payload.trim()) { out.className = "err"; out.textContent = "Enter a payload first."; return; }
+
+  const btn = document.getElementById("inj-send");
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/inject", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload, port, src_ip: src_ip || null }),
+    });
+    const d = await r.json();
+    if (!r.ok) { out.className = "err"; out.textContent = "Error: " + esc(d.error || r.status); return; }
+    if (d.matched) {
+      out.className = "hit";
+      out.textContent = `DETECTED ${d.matched} from ${d.src_ip}:${d.port} in ${d.detection_ms}ms`
+        + (d.blocked ? " — source BLOCKED (simulated)" : "");
+    } else {
+      out.className = "clean";
+      out.textContent = `No signature matched (${d.src_ip}:${d.port}) — request would pass`;
+    }
+    refreshStats();
+  } catch (e) {
+    out.className = "err"; out.textContent = "Request failed: " + esc(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("inj-send").onclick = sendInjection;
+loadPresets();
 
 backfill().then(() => { connect(); refreshStats(); setInterval(refreshStats, 5000); });
 </script>
