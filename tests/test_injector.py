@@ -56,3 +56,60 @@ def test_presets_are_all_correctly_classified():
     for p in injector.attack_presets():
         result = injector.inject(p["payload"], p["port"], "203.0.113.9")
         assert (result["matched"] is not None) == p["attack"], p["label"]
+
+
+def test_repeated_injections_trip_the_real_threshold_block(monkeypatch):
+    """Enough matching injects from one source should produce a simulated block."""
+    from Handling.metrics import ThresholdTracker
+    import Configurations.config as config
+
+    # Fresh tracker so this test is independent of others sharing the module one.
+    monkeypatch.setattr(injector, "_tracker", ThresholdTracker())
+
+    blocked = False
+    for _ in range(config.THRESHOLD_COUNT + 1):
+        result = injector.inject("UNION SELECT password FROM users", 3306, "198.51.100.50")
+        blocked = blocked or result["blocked"]
+    assert blocked, "threshold never triggered a block"
+
+
+def test_inject_endpoint_returns_detection(tmp_path, monkeypatch):
+    import dashboard.app as app_module
+
+    monkeypatch.setattr(app_module, "ALLOW_INJECT", True)
+    client = app_module.app.test_client()
+    resp = client.post("/api/inject", json={"payload": "UNION SELECT 1", "port": 80})
+    assert resp.status_code == 200
+    assert resp.get_json()["matched"] is not None
+
+
+def test_inject_endpoint_validates_input(monkeypatch):
+    import dashboard.app as app_module
+
+    monkeypatch.setattr(app_module, "ALLOW_INJECT", True)
+    client = app_module.app.test_client()
+    resp = client.post("/api/inject", json={"payload": "", "port": 80})
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_inject_endpoint_can_be_disabled(monkeypatch):
+    import dashboard.app as app_module
+
+    monkeypatch.setattr(app_module, "ALLOW_INJECT", False)
+    client = app_module.app.test_client()
+    resp = client.post("/api/inject", json={"payload": "UNION SELECT", "port": 80})
+    assert resp.status_code == 403
+
+
+def test_dashboard_exposes_no_ips_control_endpoints(monkeypatch):
+    """Injection is the only write route, and it is synthetic input — there is
+    still no endpoint that mutates IPS config or firewall state."""
+    import dashboard.app as app_module
+
+    write_rules = []
+    for rule in app_module.app.url_map.iter_rules():
+        methods = (rule.methods or set()) - {"HEAD", "OPTIONS"}
+        if methods - {"GET"}:
+            write_rules.append(str(rule))
+    assert write_rules == ["/api/inject"], f"unexpected write routes: {write_rules}"
