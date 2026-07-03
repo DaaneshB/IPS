@@ -251,6 +251,11 @@ async function sendInjection() {
 }
 
 document.getElementById("inj-send").onclick = sendInjection;
+// Ctrl/Cmd+Enter sends from the payload box, so an analyst can inject a burst
+// without reaching for the mouse between requests.
+document.getElementById("inj-payload").addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); sendInjection(); }
+});
 loadPresets();
 
 backfill().then(() => { connect(); refreshStats(); setInterval(refreshStats, 5000); });
