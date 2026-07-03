@@ -118,5 +118,30 @@ def inject():
     return jsonify(result)
 
 
+def _open_browser(url: str) -> None:
+    """Open the dashboard in the default browser shortly after startup.
+
+    Runs on a short timer so the server is accepting connections by the time
+    the page loads. Best-effort: a headless or browserless host just skips it.
+    Disable with IPS_DASHBOARD_OPEN_BROWSER=0 (e.g. for remote/CI runs).
+    """
+    import threading
+    import webbrowser
+
+    if os.environ.get("IPS_DASHBOARD_OPEN_BROWSER", "1") == "0":
+        return
+    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+
+def main() -> None:
+    port = int(os.environ.get("IPS_DASHBOARD_PORT", "5000"))
+    url = f"http://127.0.0.1:{port}"
+    print(f"IPS SIEM dashboard -> {url}  (Ctrl+C to stop)")
+    # Only auto-open in the reloader's main process; here reload is off, so
+    # this always runs once. The server binds localhost only.
+    _open_browser(url)
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)
+
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=int(os.environ.get("IPS_DASHBOARD_PORT", "5000")), debug=False, threaded=True)
+    main()
