@@ -110,6 +110,13 @@ runs, `--log-file` to override the log path.
 
 ## SIEM Dashboard
 
+> **Launching the HTML UI:** the dashboard *is* an HTML app served locally.
+> Run `python -m dashboard.app` and it starts the server and pops the page
+> open in your browser at `http://127.0.0.1:5000`. No build step, no separate
+> web server — one command. (`IPS_DASHBOARD_OPEN_BROWSER=0` to skip the
+> auto-open on a headless/remote host.)
+
+
 A SOC-style dashboard over `ips_events.log`: live event feed (server-sent
 events), events-over-time and attack-mix charts, top attacking sources,
 blocked IPs, and an **injection panel** for feeding synthetic requests to the
