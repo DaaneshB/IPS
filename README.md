@@ -110,17 +110,34 @@ runs, `--log-file` to override the log path.
 
 ## SIEM Dashboard
 
-A read-only, SOC-style dashboard over `ips_events.log`: live event feed
-(server-sent events), events-over-time and attack-mix charts, top attacking
-sources, and blocked IPs. Works with the real sniffer or the simulator.
+A SOC-style dashboard over `ips_events.log`: live event feed (server-sent
+events), events-over-time and attack-mix charts, top attacking sources,
+blocked IPs, and an **injection panel** for feeding synthetic requests to the
+IPS live (see below). Works with the real sniffer or the simulator.
 
 ```
 pip install -r REQUIREMENTS.txt
-python -m dashboard.app                      # terminal 1
-python tools/traffic_simulator.py --rate 5   # terminal 2 (or run the real IPS)
-# open http://127.0.0.1:5000
+python -m dashboard.app                      # opens http://127.0.0.1:5000 in your browser
+python tools/traffic_simulator.py --rate 5   # optional: background traffic (or run the real IPS)
 ```
 
-The dashboard binds to localhost and exposes no write endpoints by design —
-monitoring must not double as a control plane. See `learning.md` for the
-full design rationale.
+`python -m dashboard.app` launches the HTML UI and opens it in your default
+browser automatically (disable with `IPS_DASHBOARD_OPEN_BROWSER=0`). The
+dashboard binds to localhost only.
+
+### Injecting synthetic traffic
+
+The dashboard's **Inject Synthetic Traffic** panel lets you type or pick a
+request payload, choose a port, and submit it to the IPS in real time. Each
+injection is run through the *real* `PatternMatcher` (and threshold logic), so
+a detection on the panel is a genuine detection — the result is echoed back
+and the event lands in the live feed over SSE. Quick-attack presets are
+derived from the loaded signatures, so every attack preset is guaranteed to
+trip a real rule.
+
+Injection is *input* to the detection pipeline, never *control*: it cannot
+change a rule, the mode, or a firewall entry, and it never invokes the real
+firewall (a threshold breach is logged as a simulated block). Turn it off for
+a pure-monitoring view with `IPS_DASHBOARD_ALLOW_INJECT=0`.
+
+See `learning.md` for the full design rationale.
