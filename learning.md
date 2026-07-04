@@ -208,3 +208,15 @@ best-effort, skipped on headless hosts or with `IPS_DASHBOARD_OPEN_BROWSER=0`).
 The dashboard is a served HTML app rather than a file opened from disk because
 the injection and live-stream features need the local backend — a `file://`
 page couldn't reach the matcher or the log. One command is the whole launch.
+
+### Note on the read-only rollback
+
+Worth being explicit for an interview: the first version of this dashboard
+claimed "no write endpoints" as a hard guarantee. Adding injection meant
+revisiting that claim rather than quietly breaking it. The honest framing is
+that the *invariant that matters* was never "zero POSTs" — it was "the
+dashboard cannot control the IPS." That invariant still holds and is now
+pinned by a test that fails if any route other than `/api/inject` gains a
+write method, or if injection ever grows the ability to touch config or the
+firewall. Tightening a contract to its real intent, and testing it, beats an
+over-broad claim that a new feature forces you to abandon.
