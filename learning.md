@@ -155,3 +155,56 @@ python -m dashboard.app                          # terminal 1 — dashboard
 python tools/traffic_simulator.py --rate 5       # terminal 2 — traffic
 # open http://127.0.0.1:5000
 ```
+
+## 7. Injection Panel (added in follow-up)
+
+**What:** The dashboard gained an *Inject Synthetic Traffic* panel — payload
+box, port picker, optional source IP, quick-attack presets — that submits a
+request to the IPS live and shows what it decided. New backend piece:
+`dashboard/injector.py`; new route: `POST /api/inject` (plus
+`GET /api/inject/presets`).
+
+**How:**
+- `injector.inject()` runs the payload through a module-level
+  `PatternMatcher(config.RULES)` and `ThresholdTracker` — the same production
+  classes the sniffer uses. A match is written with `log_event()`, so the
+  injected event flows into the same log the SSE feed tails and appears on the
+  dashboard within the poll interval. The HTTP response echoes the decision
+  (matched signature, detection ms, blocked?) so the analyst also gets
+  immediate inline feedback.
+- The matcher/tracker are process singletons: rebuilding per request would
+  discard threshold state (so repeated injects from one source could never
+  demonstrate a block) and needlessly recompile the automaton.
+- Presets are generated from the live rules (`attack_presets()`), not typed
+  into the frontend, so a preset can never drift out of sync with the rule
+  set — a test asserts every attack preset trips a real detection.
+
+**Why these choices:**
+- *Why is an injection (write) endpoint acceptable when the dashboard was
+  "read-only"?* The original principle was that monitoring must not double as
+  a **control** plane — the dashboard must not be able to change rules, mode,
+  or firewall state. Injection doesn't do any of that; it submits synthetic
+  **input** to the detection pipeline. The refined, tested contract
+  (`test_dashboard_exposes_no_ips_control_endpoints`) makes the boundary
+  explicit: `/api/inject` is the *only* write route, and it cannot mutate IPS
+  state. That's a defensible line, and it's enforced, not just asserted in a
+  comment.
+- *Why never call the real firewall?* An injected threshold breach logs a
+  BLOCK tagged `(injected)`, exactly like the offline simulator. A dashboard
+  must not be able to block a real host — synthetic traffic must have
+  synthetic consequences only.
+- *Why gate it behind `IPS_DASHBOARD_ALLOW_INJECT`?* A real deployment may
+  want a pure-monitoring view with no submit path at all; the flag returns 403
+  and the UI hides the panel.
+- *Input validation up front* (non-empty payload, 8 KB cap, port 1–65535,
+  well-formed IP) keeps malformed requests out of the pipeline and returns a
+  clean 400 with a safe message.
+
+## 8. Launching the HTML UI
+
+`python -m dashboard.app` now starts the server **and** opens the HTML page in
+the default browser (short `threading.Timer` so the server is up first;
+best-effort, skipped on headless hosts or with `IPS_DASHBOARD_OPEN_BROWSER=0`).
+The dashboard is a served HTML app rather than a file opened from disk because
+the injection and live-stream features need the local backend — a `file://`
+page couldn't reach the matcher or the log. One command is the whole launch.
